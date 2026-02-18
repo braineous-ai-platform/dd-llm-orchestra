@@ -7,6 +7,9 @@
   <modules>
     <!-- platform -->
     <module>module-core</module>
+    <module>module-orchestra-definition</module>
+    <module>module-orchestra-runtime</module>
+    <module>module-orchestra-workflow</module>
     <module>dd-test-suite</module>
   </modules>
 
