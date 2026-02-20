@@ -118,6 +118,9 @@ public class OrchestraBaseModel {
         if (json == null) {
             throw new IllegalArgumentException("json cannot be null");
         }
+        if (json.trim().isEmpty()) {
+            throw new IllegalArgumentException("json cannot be blank");
+        }
         if (type == null) {
             throw new IllegalArgumentException("type cannot be null");
         }

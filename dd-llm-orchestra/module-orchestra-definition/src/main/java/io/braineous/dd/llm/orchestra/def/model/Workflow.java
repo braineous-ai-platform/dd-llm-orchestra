@@ -2,8 +2,6 @@ package io.braineous.dd.llm.orchestra.def.model;
 
 import io.braineous.dd.llm.orchestra.core.model.OrchestraBaseModel;
 
-import io.braineous.dd.llm.orchestra.core.model.OrchestraBaseModel;
-
 /**
  * Dev-authored Agentic Workflow definition.
  *
@@ -45,7 +43,6 @@ import io.braineous.dd.llm.orchestra.core.model.OrchestraBaseModel;
 public class Workflow extends OrchestraBaseModel {
 
     private String name;
-
     private String description;
 
     public Workflow() {

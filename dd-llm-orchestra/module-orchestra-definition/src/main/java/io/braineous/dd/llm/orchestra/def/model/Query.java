@@ -37,21 +37,10 @@ import io.braineous.dd.llm.orchestra.core.model.OrchestraBaseModel;
  */
 public class Query extends OrchestraBaseModel {
 
-    private String id;
     private String description;
     private String sql;
 
     public Query() {
-    }
-
-    @Override
-    public String getId() {
-        return id;
-    }
-
-    @Override
-    public void setId(String id) {
-        this.id = id;
     }
 
     public String getDescription() {
