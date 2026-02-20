@@ -1,0 +1,25 @@
+{
+  "name": "fno_rebook_v1",
+  "description": "Rebook disrupted passengers",
+  "transaction": {
+    "description": "Agentic flow: gather → decide → draft. Commit after HITL approval.",
+    "queries": [
+      {
+        "id": "q1_fetch_options",
+        "description": "Gather viable rebooking options.",
+        "sql": "select decision from llm where task = \"Fetch viable rebooking options\" and factId = \"cgo:pnr:123\" and relatedFacts = \"cgo:[f1,f2]\""
+      },
+      {
+        "id": "q2_rank_and_pick",
+        "description": "Rank options and pick best.",
+        "sql": "select decision from llm where task = \"Rank options and pick best\" and factId = \"cgo:pnr:123\" and relatedFacts = \"cgo:[f1,f2,f3]\""
+      },
+      {
+        "id": "q3_customer_message",
+        "description": "Draft customer message.",
+        "sql": "select decision from llm where task = \"Draft customer message\" and factId = \"cgo:pnr:123\" and relatedFacts = \"cgo:[f4,f5]\""
+      }
+    ],
+    "commitOrder": ["q1_fetch_options", "q2_rank_and_pick", "q3_customer_message"]
+  }
+}
