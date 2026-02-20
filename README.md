@@ -275,11 +275,14 @@ LLM reasoning is modeled as a deterministic query.
 
 Instead of treating an LLM call as an unstructured prompt-response exchange, we shape it as a structured decision request:
 
-select decision  
-from llm  
-where task = <your_prompt_here>  
-and factId = cgo:factId  
-and relatedFacts = cgo:[f1, f2, f3, ...]
+```roomsql
+    select decision  
+    from llm  
+    where task = <your_prompt_here>  
+    and factId = cgo:factId  
+    and relatedFacts = cgo:[f1, f2, f3, ...]
+        
+```
 
 This is not literal SQL.  
 It is a developer-facing mental model.
