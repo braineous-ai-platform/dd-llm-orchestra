@@ -45,6 +45,8 @@ public class Workflow extends OrchestraBaseModel {
     private String name;
     private String description;
 
+    private Transaction transaction;
+
     public Workflow() {
     }
 
@@ -62,5 +64,13 @@ public class Workflow extends OrchestraBaseModel {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public Transaction getTransaction() {
+        return transaction;
+    }
+
+    public void setTransaction(Transaction transaction) {
+        this.transaction = transaction;
     }
 }
