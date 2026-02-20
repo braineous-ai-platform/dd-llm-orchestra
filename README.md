@@ -267,7 +267,246 @@ This architecture enables:
 - Enterprise-grade operational monitoring  
 
 
-## 6. Implementation Status
+## 6. Deterministic LLM Query Model
+
+At the heart of LLMDD-Orchestra is a simple but powerful abstraction:
+
+LLM reasoning is modeled as a deterministic query.
+
+Instead of treating an LLM call as an unstructured prompt-response exchange, we shape it as a structured decision request:
+
+select decision  
+from llm  
+where task = <your_prompt_here>  
+and factId = cgo:factId  
+and relatedFacts = cgo:[f1, f2, f3, ...]
+
+This is not literal SQL.  
+It is a developer-facing mental model.
+
+### Why Model Reasoning as a Query?
+
+Developers understand queries.
+
+A query:
+
+- Has a clearly defined intent (`task`)
+- Operates over explicit data (`factId`, `relatedFacts`)
+- Produces a bounded result (`decision`)
+
+By modeling LLM reasoning this way, we:
+
+- Make reasoning steps explicit
+- Bind reasoning to identifiable facts
+- Avoid hidden, implicit context
+- Enable replay and audit potential
+
+### Components of the Model
+
+**task**
+
+The reasoning instruction.  
+This is the equivalent of a prompt, but treated as a declared intent rather than free-form dialogue.
+
+**factId**
+
+The primary anchor for the decision.  
+This defines what entity or event the reasoning is centered on.
+
+**relatedFacts**
+
+Additional bounded context required for the decision.  
+Context is explicitly declared — not implicitly accumulated across hidden state.
+
+**decision**
+
+The structured outcome of the reasoning step.  
+Not arbitrary text, but a decision artifact that can be evaluated, validated, or committed.
+
+---
+
+This query model forms the backbone of deterministic agentic execution.
+
+Each reasoning step in an Agent workflow is treated as a bounded query, executed within explicit orchestration and governance boundaries.
+
+## 7. Agentic Workflow Transaction
+
+An Agentic Workflow is easy to understand.
+
+A workflow coordinates steps.  
+It runs tasks.  
+It moves state forward.
+
+The introduction of a **Transaction** inside an Agentic Workflow is the architectural shift.
+
+This is where deterministic orchestration meets probabilistic reasoning.
+
+---
+
+### Reasoning vs. Mutation
+
+In many agent-style systems, reasoning and system mutation are interleaved:
+
+1. Think
+2. Call tool
+3. Mutate state
+4. Think again
+5. Mutate again
+
+Each reasoning step may directly trigger a system change.
+
+The architectural risk is subtle:
+
+Probabilistic output is directly mutating deterministic systems.
+
+Failures compound.  
+Replay becomes difficult.  
+Audit boundaries blur.
+
+This is not inherently wrong.  
+But at enterprise scale, it becomes operationally dangerous.
+
+---
+
+### The Transaction Boundary
+
+LLMDD-Orchestra introduces a Transaction inside the workflow to separate two fundamentally different concerns:
+
+**Reasoning is cheap and reversible.**  
+**Commit is expensive and irreversible.**
+
+Reasoning steps:
+
+- Produce proposals.
+- Do not mutate durable system state.
+- Can be recomputed.
+- Can be rejected.
+- Can be overridden.
+- Can be sent to human approval.
+
+Commit steps:
+
+- Write to databases.
+- Publish to Kafka.
+- Trigger downstream workflows.
+- Send customer communications.
+- Mutate real system state.
+
+Once committed, side effects propagate.
+
+The Transaction exists to separate these two phases.
+
+---
+
+### Deterministic LLM Query Model Inside the Transaction
+
+Each reasoning step inside a Transaction is modeled using the Deterministic LLM Query Model:
+
+select decision  
+from llm  
+where task = <your_prompt_here>  
+and factId = cgo:factId  
+and relatedFacts = cgo:[f1, f2, f3, ...]
+
+These queries are declared explicitly inside the transaction definition:
+
+```json
+{
+  "name": "fno_rebook_v1",
+  "description": "Rebook disrupted passengers",
+  "transaction": {
+    "description": "Agentic flow: gather → decide → draft. Commit after HITL approval.",
+    "queries": [
+      {
+        "id": "q1_fetch_options",
+        "description": "Gather viable rebooking options.",
+        "sql": "select decision from llm where task = \"Fetch viable rebooking options\" and factId = \"cgo:pnr:123\" and relatedFacts = \"cgo:[f1,f2]\""
+      },
+      {
+        "id": "q2_rank_and_pick",
+        "description": "Rank options and pick best.",
+        "sql": "select decision from llm where task = \"Rank options and pick best\" and factId = \"cgo:pnr:123\" and relatedFacts = \"cgo:[f1,f2,f3]\""
+      },
+      {
+        "id": "q3_customer_message",
+        "description": "Draft customer message.",
+        "sql": "select decision from llm where task = \"Draft customer message\" and factId = \"cgo:pnr:123\" and relatedFacts = \"cgo:[f4,f5]\""
+      }
+    ],
+    "commitOrder": ["q1_fetch_options", "q2_rank_and_pick", "q3_customer_message"]
+  }
+}
+```
+
+Within the transaction:
+
+- Each query has a stable identifier.
+- Each query has a declared reasoning intent.
+- Each query operates on explicitly declared context.
+- The execution order is deterministic (`commitOrder`).
+
+No reasoning step mutates system state directly.
+
+Reasoning accumulates structured decision artifacts.
+
+Only after evaluation — and optionally human approval — does the workflow cross the commit boundary.
+
+---
+
+### Why This Matters
+
+The Agentic Workflow Transaction introduces architectural discipline:
+
+- Probabilistic reasoning is contained.
+- Deterministic mutation is explicit.
+- Commit boundaries are controlled.
+- Audit surfaces are clear.
+- Replay potential becomes feasible.
+
+The Agent remains flexible and tool-agnostic.
+
+But the system state remains protected.
+
+This separation is what makes agentic systems production-ready.
+
+## 8. What This Feels Like as a Developer
+
+If you are a Spring Boot / Java developer, this does not feel like an “AI framework.”
+
+It feels like disciplined backend engineering — running on Netflix Conductor.
+
+You are not writing prompt loops.
+
+You are not juggling hidden state.
+
+You are not letting probabilistic output mutate your system directly.
+
+Instead:
+
+- You define a workflow, like you define a service.
+- You declare reasoning steps as deterministic queries.
+- You explicitly bind context (`factId`, `relatedFacts`).
+- You rely on Netflix Conductor for durable execution.
+- You know exactly where commit happens.
+- You can insert validation or HITL before mutation.
+- You can replay up to the transaction boundary safely.
+- You can evolve queries without rewriting orchestration.
+
+Reasoning becomes just another well-defined boundary.
+
+Mutation becomes intentional.
+
+Side effects are no longer accidental.
+
+It feels less like “AI magic” and more like:
+
+Clear contracts.  
+Explicit state transitions.  
+Controlled side effects.  
+Production discipline.
+
+
+## 9. Implementation Status
 
 LLMDD-Orchestra is currently in active architectural and implementation development.
 
