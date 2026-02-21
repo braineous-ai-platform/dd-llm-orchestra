@@ -11,6 +11,7 @@
     <module>module-orchestra-runtime</module>
     <module>module-orchestra-workflow</module>
     <module>dd-test-suite</module>
+    <module>dd-it-suite</module>
   </modules>
 
   <properties>
