@@ -112,6 +112,9 @@ public class ConductorWorkflowPublisher {
         //------------------------------------------------------------------
 
         //------Publish to Conductor engine---------------------------------
+        if (!activePublishMode) {
+            return RegistrationResult.success(conductorDef.getName(), conductorDef.getVersion());
+        }
 
         RegistrationResult publishResult = this.publishToConductor(conductorDef);
 
