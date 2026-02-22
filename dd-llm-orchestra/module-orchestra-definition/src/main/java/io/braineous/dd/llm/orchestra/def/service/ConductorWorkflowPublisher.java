@@ -1,10 +1,8 @@
 package io.braineous.dd.llm.orchestra.def.service;
 
 import ai.braineous.rag.prompt.observe.Console;
-import io.braineous.dd.llm.orchestra.def.model.Query;
-import io.braineous.dd.llm.orchestra.def.model.RegistrationResult;
-import io.braineous.dd.llm.orchestra.def.model.Transaction;
-import io.braineous.dd.llm.orchestra.def.model.Workflow;
+import com.netflix.conductor.common.metadata.workflow.WorkflowDef;
+import io.braineous.dd.llm.orchestra.def.model.*;
 import io.braineous.dd.llm.orchestra.wf.runtime.LLMDDTaskService;
 import io.braineous.dd.llm.orchestra.wf.runtime.WorkflowRegistrationService;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -116,26 +114,22 @@ public class ConductorWorkflowPublisher {
             return RegistrationResult.success(conductorDef.getName(), conductorDef.getVersion());
         }
 
-        RegistrationResult publishResult = this.publishToConductor(conductorDef);
+        RegistrationResult publishResult = this.publishToConductor(wrs, conductorDef);
 
         Console.log("wf.publisher.publish.out", String.valueOf(publishResult));
         return publishResult;
-
-        //------------------------------------------------------------------
     }
 
 
     //----------------------------------------------------------------------------------
-    private RegistrationResult publishToConductor(
-            com.netflix.conductor.common.metadata.workflow.WorkflowDef conductorDef
-    ) {
-
-        // TODO: call certified Conductor engine publisher here
-        // Example placeholders:
-        // conductorEngine.registerTaskDefs(taskDefs);
-        // conductorEngine.registerWorkflowDef(conductorDef);
-
-        return RegistrationResult.success(conductorDef.getName(), conductorDef.getVersion());
+    private RegistrationResult publishToConductor(WorkflowRegistrationService wrs,
+                                                  WorkflowDef conductorDef) {
+        wrs.register(conductorDef);
+        RegistrationResult result = RegistrationResult.success(
+                conductorDef.getName(),
+                conductorDef.getVersion()
+        );
+        return result;
     }
 
     //------Validate translated Conductor WorkflowDef
