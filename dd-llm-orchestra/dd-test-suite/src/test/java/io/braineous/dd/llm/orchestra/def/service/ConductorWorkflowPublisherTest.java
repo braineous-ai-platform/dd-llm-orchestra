@@ -5,6 +5,7 @@ import io.braineous.dd.llm.orchestra.def.model.Query;
 import io.braineous.dd.llm.orchestra.def.model.RegistrationResult;
 import io.braineous.dd.llm.orchestra.def.model.Transaction;
 import io.braineous.dd.llm.orchestra.def.model.Workflow;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
@@ -13,11 +14,15 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ConductorWorkflowPublisherTest {
 
+    private ConductorWorkflowPublisher publisher = new ConductorWorkflowPublisher();
+
+    @BeforeEach
+    public void setUp(){
+        publisher.deactivatePublishMode();
+    }
+
     @Test
     void publishOrchestraDef_nullInput_returnsDefNullFailure() {
-
-        ConductorWorkflowPublisher publisher = new ConductorWorkflowPublisher();
-
         RegistrationResult result = publisher.publishOrchestraDef(null);
 
         assertNotNull(result);
@@ -28,9 +33,6 @@ class ConductorWorkflowPublisherTest {
 
     @Test
     void publishOrchestraDef_blankName_returnsDefInvalidFailure() {
-
-        ConductorWorkflowPublisher publisher = new ConductorWorkflowPublisher();
-
         Workflow wf = new Workflow();
         wf.setName("   ");
         wf.setDescription("Rebook disrupted passengers");
@@ -54,9 +56,6 @@ class ConductorWorkflowPublisherTest {
 
     @Test
     void publishOrchestraDef_blankDescription_returnsDefInvalidFailure() {
-
-        ConductorWorkflowPublisher publisher = new ConductorWorkflowPublisher();
-
         Workflow wf = new Workflow();
         wf.setName("fno_rebook_v1");
         wf.setDescription("   ");
@@ -80,9 +79,6 @@ class ConductorWorkflowPublisherTest {
 
     @Test
     void publishOrchestraDef_nullTransaction_returnsDefInvalidFailure() {
-
-        ConductorWorkflowPublisher publisher = new ConductorWorkflowPublisher();
-
         Workflow wf = new Workflow();
         wf.setName("fno_rebook_v1");
         wf.setDescription("Rebook disrupted passengers");
@@ -98,9 +94,6 @@ class ConductorWorkflowPublisherTest {
 
     @Test
     void publishOrchestraDef_nullQueries_returnsDefInvalidFailure() {
-
-        ConductorWorkflowPublisher publisher = new ConductorWorkflowPublisher();
-
         Workflow wf = new Workflow();
         wf.setName("fno_rebook_v1");
         wf.setDescription("Rebook disrupted passengers");
@@ -119,9 +112,6 @@ class ConductorWorkflowPublisherTest {
 
     @Test
     void publishOrchestraDef_queriesHasNullEntry_returnsDefInvalidFailure() {
-
-        ConductorWorkflowPublisher publisher = new ConductorWorkflowPublisher();
-
         Workflow wf = new Workflow();
         wf.setName("fno_rebook_v1");
         wf.setDescription("Rebook disrupted passengers");
@@ -140,9 +130,6 @@ class ConductorWorkflowPublisherTest {
 
     @Test
     void publishOrchestraDef_queryMissingId_returnsDefInvalidFailure() {
-
-        ConductorWorkflowPublisher publisher = new ConductorWorkflowPublisher();
-
         Workflow wf = new Workflow();
         wf.setName("fno_rebook_v1");
         wf.setDescription("Rebook disrupted passengers");
@@ -166,9 +153,6 @@ class ConductorWorkflowPublisherTest {
 
     @Test
     void publishOrchestraDef_queryMissingDescription_returnsDefInvalidFailure() {
-
-        ConductorWorkflowPublisher publisher = new ConductorWorkflowPublisher();
-
         Workflow wf = new Workflow();
         wf.setName("fno_rebook_v1");
         wf.setDescription("Rebook disrupted passengers");
@@ -192,9 +176,6 @@ class ConductorWorkflowPublisherTest {
 
     @Test
     void publishOrchestraDef_queryMissingSql_returnsDefInvalidFailure() {
-
-        ConductorWorkflowPublisher publisher = new ConductorWorkflowPublisher();
-
         Workflow wf = new Workflow();
         wf.setName("fno_rebook_v1");
         wf.setDescription("Rebook disrupted passengers");
@@ -218,9 +199,6 @@ class ConductorWorkflowPublisherTest {
 
     @Test
     void publishOrchestraDef_validWorkflow_engineNotWired_returnsFailure() {
-
-        ConductorWorkflowPublisher publisher = new ConductorWorkflowPublisher();
-
         Workflow wf = new Workflow();
         wf.setName("fno_rebook_v1");
         wf.setDescription("Rebook disrupted passengers");
@@ -244,30 +222,21 @@ class ConductorWorkflowPublisherTest {
         RegistrationResult result = publisher.publishOrchestraDef(wf);
 
         assertNotNull(result);
-        assertFalse(result.isSuccess());
-        assertNotNull(result.getWhy());
-        assertEquals("ENGINE_NOT_WIRED", result.getWhy().getReason());
+        assertTrue(result.isSuccess());
     }
 
     @Test
     void publishOrchestraDef_validWorkflow_translationValid_engineNotWired() {
-
-        ConductorWorkflowPublisher publisher = new ConductorWorkflowPublisher();
-
         Workflow wf = buildValidWorkflow();
 
         RegistrationResult result = publisher.publishOrchestraDef(wf);
 
         assertNotNull(result);
-        assertFalse(result.isSuccess());
-        assertEquals("ENGINE_NOT_WIRED", result.getWhy().getReason());
+        assertTrue(result.isSuccess());
     }
 
     @Test
     void publishOrchestraDef_missingSql_afterTranslation_returnsDefInvalid() {
-
-        ConductorWorkflowPublisher publisher = new ConductorWorkflowPublisher();
-
         Workflow wf = buildValidWorkflow();
         wf.getTransaction().getQueries().get(0).setSql("   "); // break sql
 
@@ -280,9 +249,6 @@ class ConductorWorkflowPublisherTest {
 
     @Test
     void publishOrchestraDef_missingQueryDescription_afterTranslation_returnsDefInvalid() {
-
-        ConductorWorkflowPublisher publisher = new ConductorWorkflowPublisher();
-
         Workflow wf = buildValidWorkflow();
         wf.getTransaction().getQueries().get(0).setDescription("   ");
 

@@ -12,7 +12,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 @ApplicationScoped
 public class LLMDDTaskService {
 
-    private static final String TASK_TYPE = "llmdd_query_task";
+    public static final String TASK_TYPE = "llmdd_query_task";
     private static final String WORKER_ID = "payload-worker-id";
 
     @Inject
