@@ -248,4 +248,73 @@ class ConductorWorkflowPublisherTest {
         assertNotNull(result.getWhy());
         assertEquals("ENGINE_NOT_WIRED", result.getWhy().getReason());
     }
+
+    @Test
+    void publishOrchestraDef_validWorkflow_translationValid_engineNotWired() {
+
+        ConductorWorkflowPublisher publisher = new ConductorWorkflowPublisher();
+
+        Workflow wf = buildValidWorkflow();
+
+        RegistrationResult result = publisher.publishOrchestraDef(wf);
+
+        assertNotNull(result);
+        assertFalse(result.isSuccess());
+        assertEquals("ENGINE_NOT_WIRED", result.getWhy().getReason());
+    }
+
+    @Test
+    void publishOrchestraDef_missingSql_afterTranslation_returnsDefInvalid() {
+
+        ConductorWorkflowPublisher publisher = new ConductorWorkflowPublisher();
+
+        Workflow wf = buildValidWorkflow();
+        wf.getTransaction().getQueries().get(0).setSql("   "); // break sql
+
+        RegistrationResult result = publisher.publishOrchestraDef(wf);
+
+        assertNotNull(result);
+        assertFalse(result.isSuccess());
+        assertEquals("DEF_INVALID", result.getWhy().getReason());
+    }
+
+    @Test
+    void publishOrchestraDef_missingQueryDescription_afterTranslation_returnsDefInvalid() {
+
+        ConductorWorkflowPublisher publisher = new ConductorWorkflowPublisher();
+
+        Workflow wf = buildValidWorkflow();
+        wf.getTransaction().getQueries().get(0).setDescription("   ");
+
+        RegistrationResult result = publisher.publishOrchestraDef(wf);
+
+        assertNotNull(result);
+        assertFalse(result.isSuccess());
+        assertEquals("DEF_INVALID", result.getWhy().getReason());
+    }
+
+    //-------------------------------------------------
+    private Workflow buildValidWorkflow() {
+
+        Workflow wf = new Workflow();
+        wf.setName("fno_rebook_v1");
+        wf.setDescription("Rebook disrupted passengers");
+
+        Transaction tx = new Transaction();
+
+        Query q1 = new Query();
+        q1.setId("q1_fetch_options");
+        q1.setDescription("Gather viable rebooking options.");
+        q1.setSql("select decision from llm where task = \"Fetch\"");
+
+        Query q2 = new Query();
+        q2.setId("q2_rank_and_pick");
+        q2.setDescription("Rank options and pick best.");
+        q2.setSql("select decision from llm where task = \"Rank\"");
+
+        tx.setQueries(java.util.Arrays.asList(q1, q2));
+        wf.setTransaction(tx);
+
+        return wf;
+    }
 }
