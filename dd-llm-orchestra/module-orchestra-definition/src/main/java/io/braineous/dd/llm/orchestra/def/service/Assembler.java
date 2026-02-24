@@ -1,31 +1,42 @@
 package io.braineous.dd.llm.orchestra.def.service;
 
 import ai.braineous.rag.prompt.observe.Console;
-import com.netflix.conductor.common.metadata.workflow.WorkflowDef;
+import io.braineous.dd.llm.orchestra.core.model.Why;
 import io.braineous.dd.llm.orchestra.def.model.AssemblyArtifact;
 import io.braineous.dd.llm.orchestra.def.model.PublishResult;
+import io.braineous.dd.llm.orchestra.def.model.RegistrationResult;
+import io.braineous.dd.llm.orchestra.def.model.Workflow;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 @ApplicationScoped
 public class Assembler {
 
-    //TODO: Inject module-orchestra-worklow publisher to NetFlix Conductor
+    @Inject
+    private ConductorWorkflowPublisher publisher;
+
+    //-------------------------------------------------
+    //For UT/IT mode testing-only
+    private boolean activePublishMode = true;
+    void deactivatePublishMode(){
+        this.activePublishMode = false;
+    }
+    //---------------------------------------------------
 
     public Assembler() {
     }
 
-    public PublishResult assemble(WorkflowDef definition) {
+    public PublishResult assemble(Workflow workflow) {
 
-        Console.log("assembler.assemble.in", definition);
+        Console.log("assembler.assemble.in", workflow);
 
-        if (definition == null) {
+        if (workflow == null) {
             PublishResult r = PublishResult.failure("DEF_NULL", "WorkflowDef is null");
             Console.log("assembler.assemble.out", r);
             return r;
         }
 
-        PublishResult invalid = validateDefinition(definition);
+        PublishResult invalid = validateDefinition(workflow);
         if (invalid != null) {
             Console.log("assembler.assemble.out", invalid);
             return invalid;
@@ -33,11 +44,18 @@ public class Assembler {
 
         AssemblyArtifact artifact;
         try {
-            artifact = buildArtifact(definition);
+            artifact = buildArtifact(workflow);
         } catch (Exception e) {
             PublishResult r = PublishResult.failure("ARTIFACT_BUILD_FAILED", safeMsg(e));
             Console.log("assembler.assemble.out", r);
             return r;
+        }
+
+        if (!activePublishMode) {
+            return PublishResult.success(
+                    workflow.getName(),
+                    Integer.parseInt(workflow.getVersion())
+            );
         }
 
         PublishResult r = publish(artifact);
@@ -52,16 +70,25 @@ public class Assembler {
         Console.log("assembler.publish.in", artifact);
 
         try {
-            PublishResult r = doPublish(artifact);
+            RegistrationResult r = doPublish(artifact);
             Console.log("assembler.publish.out", r);
-            return r;
+            if(r == null){
+                return PublishResult.failure("PUBLISH_FAILED", "Publisher returned null");
+            }
+            if (!r.isSuccess()) {
+                Why why = r.getWhy();
+                if (why == null) {
+                    return PublishResult.failure("PUBLISH_FAILED", "Publisher failed without WHY");
+                }
+                return PublishResult.failure(why.getReason(), why.getDetails());
+            }
+
+            PublishResult result = PublishResult.success(
+                    artifact.getWorkflow().getName(),
+                    Integer.parseInt(artifact.getWorkflow().getVersion())
+            );
+            return result;
         }
-        //TODO: activate_once_engine module is implemented
-        /*catch (EngineRejectedException e) {
-            PublishResult r = PublishResult.failure("ENGINE_REJECTED", safeMsg(e));
-            Console.log("assembler.publish.out", r);
-            return r;
-        }*/
         catch (Exception e) {
             PublishResult r = PublishResult.failure("PUBLISH_FAILED", safeMsg(e));
             Console.log("assembler.publish.out", r);
@@ -69,12 +96,12 @@ public class Assembler {
         }
     }
 
-    private PublishResult validateDefinition(WorkflowDef definition) {
+    private PublishResult validateDefinition(Workflow definition) {
 
         // V0 minimal validation — extend later, but keep reason stable (DEF_INVALID)
 
         String name = definition.getName();
-        Integer version = definition.getVersion();
+        String version = definition.getVersion();
 
         if (name == null) {
             return PublishResult.failure("DEF_INVALID", "WorkflowDef.name is required");
@@ -82,11 +109,15 @@ public class Assembler {
         if (name.trim().length() == 0) {
             return PublishResult.failure("DEF_INVALID", "WorkflowDef.name is blank");
         }
-        if (version == null) {
+        if (version == null || version.trim().length() == 0){
             return PublishResult.failure("DEF_INVALID", "WorkflowDef.version is required");
         }
-        if (version.intValue() <= 0) {
-            return PublishResult.failure("DEF_INVALID", "WorkflowDef.version must be > 0");
+        try {
+            if (Integer.parseInt(version) <= 0) {
+                return PublishResult.failure("DEF_INVALID", "WorkflowDef.version must be > 0");
+            }
+        }catch(NumberFormatException fne){
+            return PublishResult.failure("DEF_INVALID", "WorkflowDef.version must be numeric");
         }
 
         return null;
@@ -103,21 +134,23 @@ public class Assembler {
         return msg;
     }
 
-    private AssemblyArtifact buildArtifact(WorkflowDef definition) {
+    private AssemblyArtifact buildArtifact(Workflow definition) {
 
         AssemblyArtifact a = new AssemblyArtifact();
-        a.setConductorWorkflowDef(definition);
+        a.setWorkflow(definition);
         return a;
     }
 
 
-    private PublishResult doPublish(AssemblyArtifact artifact) {
+    private RegistrationResult doPublish(AssemblyArtifact artifact) {
         // V0: delegate to publisher adapter (to be injected)
         // Example expectations:
         // EnginePublishReceipt receipt = publisher.publish(artifact);
         // return PublishResult.success(receipt.getWorkflowName(), receipt.getWorkflowVersion());
 
-        throw new UnsupportedOperationException("publisher not wired yet");
+        Workflow workflow = artifact.getWorkflow();
+        RegistrationResult result = this.publisher.publishOrchestraDef(workflow);
+        return result;
     }
 
 }

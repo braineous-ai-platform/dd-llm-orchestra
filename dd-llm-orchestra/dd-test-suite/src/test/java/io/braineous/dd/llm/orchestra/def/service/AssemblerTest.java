@@ -3,8 +3,8 @@ package io.braineous.dd.llm.orchestra.def.service;
 import ai.braineous.rag.prompt.observe.Console;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.netflix.conductor.common.metadata.workflow.WorkflowDef;
 import io.braineous.dd.llm.orchestra.def.model.PublishResult;
+import io.braineous.dd.llm.orchestra.def.model.Workflow;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -12,38 +12,32 @@ import static org.junit.jupiter.api.Assertions.*;
 public class AssemblerTest {
 
     @Test
-    public void assemble_shouldReturnDefNull_whenDefinitionNull() {
+    public void assemble_shouldReturnDefNull_whenWorkflowNull() {
 
         Assembler a = new Assembler();
+        a.deactivatePublishMode();
 
         PublishResult r = a.assemble(null);
-
-        Console.log("ut.assembler.def_null.json", r.toJson());
 
         JsonObject obj = JsonParser.parseString(r.toJson()).getAsJsonObject();
         assertFalse(obj.get("success").getAsBoolean());
 
         JsonObject why = obj.getAsJsonObject("why");
         assertEquals("DEF_NULL", why.get("reason").getAsString());
+        // current message in code:
         assertEquals("WorkflowDef is null", why.get("details").getAsString());
-
-        assertTrue(obj.has("engineWorkflowName"));
-        assertTrue(obj.get("engineWorkflowName").isJsonNull());
-        assertTrue(obj.has("engineWorkflowVersion"));
-        assertTrue(obj.get("engineWorkflowVersion").isJsonNull());
     }
 
     @Test
     public void assemble_shouldReturnDefInvalid_whenNameNull() {
 
-        WorkflowDef def = new WorkflowDef();
-        def.setVersion(1);
+        Workflow wf = new Workflow();
+        wf.setVersion("1");
 
         Assembler a = new Assembler();
+        a.deactivatePublishMode();
 
-        PublishResult r = a.assemble(def);
-
-        Console.log("ut.assembler.def_invalid.name_null.json", r.toJson());
+        PublishResult r = a.assemble(wf);
 
         JsonObject why = JsonParser.parseString(r.toJson()).getAsJsonObject().getAsJsonObject("why");
         assertEquals("DEF_INVALID", why.get("reason").getAsString());
@@ -53,15 +47,14 @@ public class AssemblerTest {
     @Test
     public void assemble_shouldReturnDefInvalid_whenNameBlank() {
 
-        WorkflowDef def = new WorkflowDef();
-        def.setName("   ");
-        def.setVersion(1);
+        Workflow wf = new Workflow();
+        wf.setName("   ");
+        wf.setVersion("1");
 
         Assembler a = new Assembler();
+        a.deactivatePublishMode();
 
-        PublishResult r = a.assemble(def);
-
-        Console.log("ut.assembler.def_invalid.name_blank.json", r.toJson());
+        PublishResult r = a.assemble(wf);
 
         JsonObject why = JsonParser.parseString(r.toJson()).getAsJsonObject().getAsJsonObject("why");
         assertEquals("DEF_INVALID", why.get("reason").getAsString());
@@ -69,48 +62,88 @@ public class AssemblerTest {
     }
 
     @Test
-    public void assemble_shouldReturnDefInvalid_whenVersionNonPositive() {
+    public void assemble_shouldReturnDefInvalid_whenVersionNull() {
 
-        WorkflowDef def = new WorkflowDef();
-        def.setName("wf");
-        def.setVersion(0);
+        Workflow wf = new Workflow();
+        wf.setName("wf");
 
         Assembler a = new Assembler();
+        a.deactivatePublishMode();
 
-        PublishResult r = a.assemble(def);
+        PublishResult r = a.assemble(wf);
 
-        Console.log("ut.assembler.def_invalid.version_non_positive.json", r.toJson());
+        JsonObject why = JsonParser.parseString(r.toJson()).getAsJsonObject().getAsJsonObject("why");
+        assertEquals("DEF_INVALID", why.get("reason").getAsString());
+        assertEquals("WorkflowDef.version is required", why.get("details").getAsString());
+    }
+
+    @Test
+    public void assemble_shouldReturnDefInvalid_whenVersionBlank() {
+
+        Workflow wf = new Workflow();
+        wf.setName("wf");
+        wf.setVersion("   ");
+
+        Assembler a = new Assembler();
+        a.deactivatePublishMode();
+
+        PublishResult r = a.assemble(wf);
+
+        JsonObject why = JsonParser.parseString(r.toJson()).getAsJsonObject().getAsJsonObject("why");
+        assertEquals("DEF_INVALID", why.get("reason").getAsString());
+        assertEquals("WorkflowDef.version is required", why.get("details").getAsString());
+    }
+
+    @Test
+    public void assemble_shouldReturnDefInvalid_whenVersionNonNumeric() {
+
+        Workflow wf = new Workflow();
+        wf.setName("wf");
+        wf.setVersion("abc");
+
+        Assembler a = new Assembler();
+        a.deactivatePublishMode();
+
+        PublishResult r = a.assemble(wf);
+
+        JsonObject why = JsonParser.parseString(r.toJson()).getAsJsonObject().getAsJsonObject("why");
+        assertEquals("DEF_INVALID", why.get("reason").getAsString());
+        assertEquals("WorkflowDef.version must be numeric", why.get("details").getAsString());
+    }
+
+    @Test
+    public void assemble_shouldReturnDefInvalid_whenVersionNonPositive() {
+
+        Workflow wf = new Workflow();
+        wf.setName("wf");
+        wf.setVersion("0");
+
+        Assembler a = new Assembler();
+        a.deactivatePublishMode();
+
+        PublishResult r = a.assemble(wf);
 
         JsonObject why = JsonParser.parseString(r.toJson()).getAsJsonObject().getAsJsonObject("why");
         assertEquals("DEF_INVALID", why.get("reason").getAsString());
         assertEquals("WorkflowDef.version must be > 0", why.get("details").getAsString());
     }
 
-
     @Test
-    public void assemble_shouldReturnPublishFailed_whenPublisherNotWiredYet() {
+    public void assemble_shouldReturnSuccess_whenPublishModeDeactivated() {
 
-        WorkflowDef def = new WorkflowDef();
-        def.setName("wf");
-        def.setVersion(1);
+        Workflow wf = new Workflow();
+        wf.setName("wf");
+        wf.setVersion("1");
 
         Assembler a = new Assembler();
+        a.deactivatePublishMode();
 
-        PublishResult r = a.assemble(def);
-
-        Console.log("ut.assembler.publish_failed.json", r.toJson());
+        PublishResult r = a.assemble(wf);
 
         JsonObject obj = JsonParser.parseString(r.toJson()).getAsJsonObject();
-        assertFalse(obj.get("success").getAsBoolean());
-
-        JsonObject why = obj.getAsJsonObject("why");
-        assertEquals("PUBLISH_FAILED", why.get("reason").getAsString());
-        assertEquals("publisher not wired yet", why.get("details").getAsString());
-
-        assertTrue(obj.has("engineWorkflowName"));
-        assertTrue(obj.get("engineWorkflowName").isJsonNull());
-        assertTrue(obj.has("engineWorkflowVersion"));
-        assertTrue(obj.get("engineWorkflowVersion").isJsonNull());
+        assertTrue(obj.get("success").getAsBoolean());
+        assertEquals("wf", obj.get("engineWorkflowName").getAsString());
+        assertEquals(1, obj.get("engineWorkflowVersion").getAsInt());
     }
 }
 

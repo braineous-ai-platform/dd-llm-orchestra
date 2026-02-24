@@ -1,7 +1,6 @@
 package io.braineous.dd.llm.orchestra.def.model;
 
 import ai.braineous.rag.prompt.observe.Console;
-import com.netflix.conductor.common.metadata.workflow.WorkflowDef;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -15,14 +14,14 @@ public class AssemblyArtifactTest {
         AssemblyArtifact artifact = new AssemblyArtifact();
 
         try {
-            artifact.setConductorWorkflowDef(null);
+            artifact.setWorkflow(null);
             Assertions.fail("Expected IllegalArgumentException");
         } catch (IllegalArgumentException e) {
 
             Console.log("UT", e.getMessage());
 
             Assertions.assertEquals(
-                    "conductorWorkflowDef cannot be null",
+                    "workflow cannot be null",
                     e.getMessage()
             );
         }
@@ -36,13 +35,13 @@ public class AssemblyArtifactTest {
         Console.log("UT", "setAndGetConductorWorkflowDef_roundTrip - start");
 
         AssemblyArtifact artifact = new AssemblyArtifact();
-        WorkflowDef workflowDef = new WorkflowDef();
+        Workflow workflow = new Workflow();
 
-        artifact.setConductorWorkflowDef(workflowDef);
+        artifact.setWorkflow(workflow);
 
-        Console.log("UT", artifact.getConductorWorkflowDef());
+        Console.log("UT", artifact.getWorkflow());
 
-        Assertions.assertSame(workflowDef, artifact.getConductorWorkflowDef());
+        Assertions.assertSame(workflow, artifact.getWorkflow());
 
         Console.log("UT", "setAndGetConductorWorkflowDef_roundTrip - end");
     }

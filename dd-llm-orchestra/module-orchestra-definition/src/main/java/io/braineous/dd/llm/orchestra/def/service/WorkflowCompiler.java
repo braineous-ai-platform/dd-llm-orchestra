@@ -69,15 +69,12 @@ public class WorkflowCompiler {
             return v;
         }
 
-        WorkflowDef def = buildDefinition(workflow);
+        //forward for Assembler
+        // forward to Assembler (Registration phase continues there)
+        PublishResult out = assembler.assemble(workflow);
 
-        //TODO: forward for Assembler
-
-
-        PublishResult ok = PublishResult.success(def.getName(), ENGINE_VERSION_INT);
-
-        Console.log("workflow.compiler.compile.out", ok);
-        return ok;
+        Console.log("workflow.compiler.compile.out", out);
+        return out;
     }
 
     // ---------------------------------------------------------

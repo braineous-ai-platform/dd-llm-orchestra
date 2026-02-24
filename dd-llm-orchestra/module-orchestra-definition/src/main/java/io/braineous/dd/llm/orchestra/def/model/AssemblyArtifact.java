@@ -35,20 +35,20 @@ import com.netflix.conductor.common.metadata.workflow.WorkflowDef;
  */
 public class AssemblyArtifact {
 
-    private WorkflowDef conductorWorkflowDef;
+    private Workflow workflow;
 
     public AssemblyArtifact() {
     }
 
-    public WorkflowDef getConductorWorkflowDef() {
-        return conductorWorkflowDef;
+    public Workflow getWorkflow() {
+        return workflow;
     }
 
-    public void setConductorWorkflowDef(WorkflowDef conductorWorkflowDef) {
-        if (conductorWorkflowDef == null) {
-            throw new IllegalArgumentException("conductorWorkflowDef cannot be null");
+    public void setWorkflow(Workflow workflow) {
+        if(workflow == null){
+            throw new IllegalArgumentException("workflow cannot be null");
         }
-        this.conductorWorkflowDef = conductorWorkflowDef;
+        this.workflow = workflow;
     }
 }
 
