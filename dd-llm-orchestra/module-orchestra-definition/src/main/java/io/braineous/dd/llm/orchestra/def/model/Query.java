@@ -43,6 +43,17 @@ public class Query extends OrchestraBaseModel {
     public Query() {
     }
 
+    // Dev-authored semantic ID for commitOrder binding.
+    @Override
+    public String getId() {
+        return super.getId();
+    }
+
+    @Override
+    public void setId(String id) {
+        super.setId(id);
+    }
+
     public String getDescription() {
         return description;
     }
