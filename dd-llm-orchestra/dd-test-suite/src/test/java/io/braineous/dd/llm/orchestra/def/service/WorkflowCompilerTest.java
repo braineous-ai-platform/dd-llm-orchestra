@@ -123,6 +123,7 @@ public class WorkflowCompilerTest {
         Console.log("WorkflowCompilerTest.compile_shouldSucceed_whenValid", "START");
 
         WorkflowCompiler compiler = new WorkflowCompiler();
+        compiler.deactivatePublishMode();
 
         PublishResult r = compiler.compile(VALID_JSON);
 
@@ -140,6 +141,7 @@ public class WorkflowCompilerTest {
         Console.log("WorkflowCompilerTest.compile_shouldSucceed_whenTransactionMissing", "START");
 
         WorkflowCompiler compiler = new WorkflowCompiler();
+        compiler.deactivatePublishMode();
 
         PublishResult r = compiler.compile(NO_TX_JSON);
 
@@ -157,6 +159,7 @@ public class WorkflowCompilerTest {
         Console.log("WorkflowCompilerTest.compile_shouldFail_whenJsonNull", "START");
 
         WorkflowCompiler compiler = new WorkflowCompiler();
+        compiler.deactivatePublishMode();
 
         PublishResult r = compiler.compile(null);
 
@@ -170,6 +173,7 @@ public class WorkflowCompilerTest {
         Console.log("WorkflowCompilerTest.compile_shouldFail_whenJsonBlank", "START");
 
         WorkflowCompiler compiler = new WorkflowCompiler();
+        compiler.deactivatePublishMode();
 
         PublishResult r = compiler.compile("   ");
 
@@ -183,6 +187,7 @@ public class WorkflowCompilerTest {
         Console.log("WorkflowCompilerTest.compile_shouldFail_whenJsonNullLiteral", "START");
 
         WorkflowCompiler compiler = new WorkflowCompiler();
+        compiler.deactivatePublishMode();
 
         PublishResult r = compiler.compile("null");
 
@@ -196,6 +201,7 @@ public class WorkflowCompilerTest {
         Console.log("WorkflowCompilerTest.compile_shouldFail_whenWorkflowNameNull", "START");
 
         WorkflowCompiler compiler = new WorkflowCompiler();
+        compiler.deactivatePublishMode();
 
         PublishResult r = compiler.compile(NULL_NAME_JSON);
 
@@ -209,6 +215,7 @@ public class WorkflowCompilerTest {
         Console.log("WorkflowCompilerTest.compile_shouldFail_whenWorkflowNameBlank", "START");
 
         WorkflowCompiler compiler = new WorkflowCompiler();
+        compiler.deactivatePublishMode();
 
         PublishResult r = compiler.compile(BLANK_NAME_JSON);
 
@@ -222,6 +229,7 @@ public class WorkflowCompilerTest {
         Console.log("WorkflowCompilerTest.compile_shouldFail_whenQueriesNull", "START");
 
         WorkflowCompiler compiler = new WorkflowCompiler();
+        compiler.deactivatePublishMode();
 
         PublishResult r = compiler.compile(NULL_QUERIES_JSON);
 
@@ -235,6 +243,7 @@ public class WorkflowCompilerTest {
         Console.log("WorkflowCompilerTest.compile_shouldFail_whenQueriesEmpty", "START");
 
         WorkflowCompiler compiler = new WorkflowCompiler();
+        compiler.deactivatePublishMode();
 
         PublishResult r = compiler.compile(EMPTY_QUERIES_JSON);
 
@@ -248,6 +257,7 @@ public class WorkflowCompilerTest {
         Console.log("WorkflowCompilerTest.compile_shouldFail_whenQueryElementNull", "START");
 
         WorkflowCompiler compiler = new WorkflowCompiler();
+        compiler.deactivatePublishMode();
 
         PublishResult r = compiler.compile(NULL_QUERY_ELEMENT_JSON);
 
@@ -261,6 +271,7 @@ public class WorkflowCompilerTest {
         Console.log("WorkflowCompilerTest.compile_shouldFail_whenQueryIdNull", "START");
 
         WorkflowCompiler compiler = new WorkflowCompiler();
+        compiler.deactivatePublishMode();
 
         PublishResult r = compiler.compile(NULL_QUERY_ID_JSON);
 
@@ -274,6 +285,7 @@ public class WorkflowCompilerTest {
         Console.log("WorkflowCompilerTest.compile_shouldFail_whenQueryIdBlank", "START");
 
         WorkflowCompiler compiler = new WorkflowCompiler();
+        compiler.deactivatePublishMode();
 
         PublishResult r = compiler.compile(BLANK_QUERY_ID_JSON);
 
@@ -287,12 +299,41 @@ public class WorkflowCompilerTest {
         Console.log("WorkflowCompilerTest.compile_shouldFail_whenQueryIdsDuplicate_afterTrim", "START");
 
         WorkflowCompiler compiler = new WorkflowCompiler();
+        compiler.deactivatePublishMode();
 
         PublishResult r = compiler.compile(DUP_QUERY_ID_JSON);
 
         assertInvalid(r);
 
         Console.log("WorkflowCompilerTest.compile_shouldFail_whenQueryIdsDuplicate_afterTrim", "OK");
+    }
+
+    @Test
+    public void compile_shouldSetDefaultVersion_whenMissing() {
+
+        String json =
+                "{\n" +
+                        "  \"name\": \"wf_default_version\",\n" +
+                        "  \"description\": \"No version set\",\n" +
+                        "  \"transaction\": {\n" +
+                        "    \"description\": \"Agentic flow\",\n" +
+                        "    \"queries\": [\n" +
+                        "      { \"id\": \"q1\", \"description\": \"x\", \"sql\": \"select 1\" }\n" +
+                        "    ],\n" +
+                        "    \"commitOrder\": [\"q1\"]\n" +
+                        "  }\n" +
+                        "}";
+
+        WorkflowCompiler compiler = new WorkflowCompiler();
+        compiler.deactivatePublishMode();
+
+        PublishResult r = compiler.compile(json);
+
+        org.junit.jupiter.api.Assertions.assertNotNull(r);
+        org.junit.jupiter.api.Assertions.assertTrue(r.isSuccess());
+        org.junit.jupiter.api.Assertions.assertNull(r.getWhy());
+        org.junit.jupiter.api.Assertions.assertEquals("wf_default_version", r.getEngineWorkflowName());
+        org.junit.jupiter.api.Assertions.assertEquals(Integer.valueOf(1), r.getEngineWorkflowVersion());
     }
 
     // ---------------------------------------------------------

@@ -38,6 +38,14 @@ public class WorkflowCompiler {
     @Inject
     private Assembler assembler;
 
+    //-------------------------------------------------
+    //For UT/IT mode testing-only
+    private boolean activePublishMode = true;
+    void deactivatePublishMode(){
+        this.activePublishMode = false;
+    }
+    //---------------------------------------------------
+
     public WorkflowCompiler() {
     }
 
@@ -71,6 +79,15 @@ public class WorkflowCompiler {
 
         //forward for Assembler
         // forward to Assembler (Registration phase continues there)
+        applyDefaults(workflow);
+
+        if (!activePublishMode) {
+            return PublishResult.success(
+                    workflow.getName(),
+                    ENGINE_VERSION_INT
+            );
+        }
+
         PublishResult out = assembler.assemble(workflow);
 
         Console.log("workflow.compiler.compile.out", out);
@@ -152,44 +169,15 @@ public class WorkflowCompiler {
         return null;
     }
 
-    private WorkflowDef buildDefinition(Workflow workflow) {
+    private void applyDefaults(Workflow workflow) {
 
-        WorkflowDef def = new WorkflowDef();
-
-        def.setName(workflow.getName().trim());
-        def.setVersion(DEF_VERSION_STR);
-
-        java.util.List<String> stepIds = new java.util.ArrayList<String>();
-
-        Transaction tx = workflow.getTransaction();
-        if (tx != null) {
-
-            java.util.List<Query> queries = tx.getQueries();
-            if (queries != null) {
-                for (int i = 0; i < queries.size(); i++) {
-
-                    Query q = queries.get(i);
-                    if (q == null) {
-                        continue;
-                    }
-
-                    String qid = q.getId();
-                    if (qid == null) {
-                        continue;
-                    }
-
-                    String qidTrimmed = qid.trim();
-                    if (qidTrimmed.length() == 0) {
-                        continue;
-                    }
-
-                    stepIds.add("step." + qidTrimmed);
-                }
-            }
+        if (workflow == null) {
+            return;
         }
 
-        def.setStepDefIds(stepIds);
-
-        return def;
+        String v = workflow.getVersion();
+        if (v == null || v.trim().length() == 0) {
+            workflow.setVersion(DEF_VERSION_STR);
+        }
     }
 }
