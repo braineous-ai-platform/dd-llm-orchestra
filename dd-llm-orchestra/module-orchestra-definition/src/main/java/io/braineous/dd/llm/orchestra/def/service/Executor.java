@@ -1,19 +1,38 @@
 package io.braineous.dd.llm.orchestra.def.service;
 
+import ai.braineous.rag.prompt.observe.Console;
+import com.netflix.conductor.common.metadata.workflow.WorkflowDef;
 import io.braineous.dd.llm.orchestra.def.model.ExecutionResult;
 import io.braineous.dd.llm.orchestra.def.model.QueryExecutionResult;
 import io.braineous.dd.llm.orchestra.def.model.Query;
 import io.braineous.dd.llm.orchestra.def.model.Transaction;
 import io.braineous.dd.llm.orchestra.def.model.Workflow;
+import io.braineous.dd.llm.orchestra.wf.runtime.LLMDDTaskService;
+import io.braineous.dd.llm.orchestra.wf.runtime.WorkflowStartService;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@ApplicationScoped
 public class Executor {
 
-    public ExecutionResult executeTransaction(Workflow workflow) {
+    @Inject
+    private WorkflowStartService startService;
+
+    //-------------------------------------------------
+    // For UT/IT mode testing-only
+    private boolean activeExeMode = true;
+
+    void deactivateExeMode() {
+        this.activeExeMode = false;
+    }
+    //---------------------------------------------------
+
+    public ExecutionResult executeTransaction(Workflow workflow, Map<String, Object> input) {
 
         if (workflow == null) {
             return ExecutionResult.failure(null, null, null,
@@ -29,6 +48,15 @@ public class Executor {
                     null);
         }
 
+        if (input == null) {
+            return ExecutionResult.failure(workflow.getName(),
+                    workflow.getTransaction().getDescription(),
+                    null,
+                    "ORCH_EXEC_NULL_INPUT",
+                    "execution input cannot be null",
+                    null);
+        }
+
         Transaction tx = workflow.getTransaction();
 
         if (tx.getCommitOrder() == null || tx.getCommitOrder().isEmpty()) {
@@ -40,7 +68,6 @@ public class Executor {
 
         Map<String, Query> byId = indexQueries(tx);
 
-        // Surface gate: commitOrder must contain exactly all Query IDs once each.
         int commitOrderSize = tx.getCommitOrder().size();
 
         int queryListSize = 0;
@@ -80,7 +107,7 @@ public class Executor {
                         results);
             }
 
-            QueryExecutionResult r = executeQueryViaGovernance(workflow, tx, q);
+            QueryExecutionResult r = executeQueryViaGovernance(q);
 
             results.add(r);
 
@@ -92,7 +119,35 @@ public class Executor {
             }
         }
 
-        return ExecutionResult.success(workflow.getName(), tx.getDescription(), results);
+        //---------------------------------------------------------------------------------
+        if(!activeExeMode){
+            ExecutionResult result = ExecutionResult.success(workflow.getName(), tx.getDescription(), results);
+            return result;
+        }
+
+        // Runtime bridge (not wired yet — controlled by activeExeMode)
+        if (activeExeMode) {
+
+            WorkflowDef def = translateToConductorDef(workflow);
+
+            String executionId = this.startService.start(def, input);
+            Console.log("__success_executionid___", executionId);
+
+            if (executionId == null || executionId.trim().length() == 0) {
+
+                return ExecutionResult.failure(
+                        workflow.getName(),
+                        tx.getDescription(),
+                        null,
+                        "ORCH_EXEC_RUNTIME_START_FAILED",
+                        "Conductor start returned empty executionId",
+                        results
+                );
+            }
+        }
+
+        ExecutionResult result = ExecutionResult.success(workflow.getName(), tx.getDescription(), results);
+        return result;
     }
 
     private Map<String, Query> indexQueries(Transaction tx) {
@@ -123,7 +178,7 @@ public class Executor {
         return byId;
     }
 
-    private QueryExecutionResult executeQueryViaGovernance(Workflow workflow, Transaction tx, Query q) {
+    private QueryExecutionResult executeQueryViaGovernance(Query q) {
 
         if (q.getSql() == null || q.getSql().trim().isEmpty()) {
             return QueryExecutionResult.blocked(q.getId(), "ERROR",
@@ -132,5 +187,9 @@ public class Executor {
         }
 
         return QueryExecutionResult.executed(q.getId());
+    }
+
+    private com.netflix.conductor.common.metadata.workflow.WorkflowDef translateToConductorDef(Workflow workflow) {
+        return OrchestraWorkflowCompiler.translateToConductorDef(workflow);
     }
 }

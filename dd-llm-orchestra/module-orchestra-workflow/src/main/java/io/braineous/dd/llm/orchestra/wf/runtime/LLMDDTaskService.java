@@ -4,11 +4,13 @@ import ai.braineous.rag.prompt.observe.Console;
 import com.netflix.conductor.client.http.TaskClient;
 import com.netflix.conductor.common.metadata.tasks.Task;
 import com.netflix.conductor.common.metadata.tasks.TaskResult;
+import io.quarkus.runtime.Startup;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
+@Startup
 @ApplicationScoped
 public class LLMDDTaskService {
 
@@ -27,10 +29,10 @@ public class LLMDDTaskService {
 
     @PostConstruct
     public void start() {
-        if (!autoStartEnabled) {
+        /*if (!autoStartEnabled) {
             Console.log("llmdd.worker.disabled", TASK_TYPE);
             return;
-        }
+        }*/
 
         Console.log("llmdd.worker.start", TASK_TYPE);
 

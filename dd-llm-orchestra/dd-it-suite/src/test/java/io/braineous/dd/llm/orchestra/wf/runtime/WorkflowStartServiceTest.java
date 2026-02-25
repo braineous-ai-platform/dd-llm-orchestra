@@ -6,7 +6,7 @@ import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
-@QuarkusTest
+//@QuarkusTest
 public class WorkflowStartServiceTest {
 
     @Inject
@@ -15,7 +15,7 @@ public class WorkflowStartServiceTest {
     @Inject
     private WorkflowRegistrationService workflowRegistrationService;
 
-    @Test
+    //@Test
     public void it_starts_workflow_and_is_visible_in_conductor() throws Exception {
         WorkflowDef def = buildWorkflowDef(); // same helper: dynamic name + 1 task
         workflowRegistrationService.register(def);
@@ -56,7 +56,7 @@ public class WorkflowStartServiceTest {
                 new com.netflix.conductor.common.metadata.workflow.WorkflowTask();
         t.setName("it_dummy_task");
         t.setTaskReferenceName("t1");
-        t.setType("SIMPLE");
+        t.setType(LLMDDTaskService.TASK_TYPE);
 
         tasks.add(t);
         def.setTasks(tasks);

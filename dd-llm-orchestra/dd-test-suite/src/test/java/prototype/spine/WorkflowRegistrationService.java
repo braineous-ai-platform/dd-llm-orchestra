@@ -53,7 +53,7 @@ public class WorkflowRegistrationService {
         List<WorkflowTask> tasks = new ArrayList<WorkflowTask>();
         tasks.add(workflowTask);
 
-        workflowDef.setName("llmdd_orchestra_workflow_8");
+        workflowDef.setName("llmdd_orchestra_workflow_8-" + System.currentTimeMillis());
         workflowDef.setOwnerEmail("test@orkes.io");
         workflowDef.setTimeoutSeconds(600);
         workflowDef.setTimeoutPolicy(WorkflowDef.TimeoutPolicy.TIME_OUT_WF);
