@@ -344,6 +344,18 @@ The introduction of a **Transaction** inside an Agentic Workflow is the architec
 
 This is where deterministic orchestration meets probabilistic reasoning.
 
+A Transaction is the explicit reasoning boundary inside an Agent.
+
+It defines:
+
+- What reasoning steps exist
+- In what order they execute
+- What context each step operates on
+- Where commit boundaries are enforced
+
+This is not an internal runtime detail.  
+It is the external developer contract.
+
 ---
 
 ### Reasoning vs. Mutation
@@ -360,7 +372,7 @@ Each reasoning step may directly trigger a system change.
 
 The architectural risk is subtle:
 
-Probabilistic output is directly mutating deterministic systems.
+Probabilistic output directly mutates deterministic systems.
 
 Failures compound.  
 Replay becomes difficult.  
@@ -369,31 +381,27 @@ Audit boundaries blur.
 This is not inherently wrong.  
 But at enterprise scale, it becomes operationally dangerous.
 
----
-
-### The Transaction Boundary
-
-LLMDD-Orchestra introduces a Transaction inside the workflow to separate two fundamentally different concerns:
+LLMDD-Orchestra separates these concerns.
 
 **Reasoning is cheap and reversible.**  
 **Commit is expensive and irreversible.**
 
 Reasoning steps:
 
-- Produce proposals.
-- Do not mutate durable system state.
-- Can be recomputed.
-- Can be rejected.
-- Can be overridden.
-- Can be sent to human approval.
+- Produce proposals
+- Do not mutate durable system state
+- Can be recomputed
+- Can be rejected
+- Can be overridden
+- Can be sent to human approval
 
 Commit steps:
 
-- Write to databases.
-- Publish to Kafka.
-- Trigger downstream workflows.
-- Send customer communications.
-- Mutate real system state.
+- Write to databases
+- Publish to Kafka
+- Trigger downstream workflows
+- Send customer communications
+- Mutate real system state
 
 Once committed, side effects propagate.
 
@@ -405,11 +413,13 @@ The Transaction exists to separate these two phases.
 
 Each reasoning step inside a Transaction is modeled using the Deterministic LLM Query Model:
 
-select decision  
-from llm  
-where task = <your_prompt_here>  
-and factId = cgo:factId  
+```
+select decision
+from llm
+where task = <your_prompt_here>
+and factId = cgo:factId
 and relatedFacts = cgo:[f1, f2, f3, ...]
+```
 
 These queries are declared explicitly inside the transaction definition:
 
@@ -436,17 +446,25 @@ These queries are declared explicitly inside the transaction definition:
         "sql": "select decision from llm where task = \"Draft customer message\" and factId = \"cgo:pnr:123\" and relatedFacts = \"cgo:[f4,f5]\""
       }
     ],
-    "commitOrder": ["q1_fetch_options", "q2_rank_and_pick", "q3_customer_message"]
+    "commitOrder": [
+      "q1_fetch_options",
+      "q2_rank_and_pick",
+      "q3_customer_message"
+    ]
   }
 }
 ```
 
-Within the transaction:
+Within the Transaction:
 
-- Each query has a stable identifier.
-- Each query has a declared reasoning intent.
-- Each query operates on explicitly declared context.
-- The execution order is deterministic (`commitOrder`).
+- Each query has a stable identifier
+- Each query has a declared reasoning intent
+- Each query operates on explicitly declared context
+- Execution order is deterministic (`commitOrder`)
+
+The Transaction definition is the authoritative reasoning contract.
+
+It specifies exactly what reasoning steps exist and in what sequence they execute.
 
 No reasoning step mutates system state directly.
 
@@ -460,19 +478,205 @@ Only after evaluation — and optionally human approval — does the workflow cr
 
 The Agentic Workflow Transaction introduces architectural discipline:
 
-- Probabilistic reasoning is contained.
-- Deterministic mutation is explicit.
-- Commit boundaries are controlled.
-- Audit surfaces are clear.
-- Replay potential becomes feasible.
+- Probabilistic reasoning is contained
+- Deterministic mutation is explicit
+- Commit boundaries are controlled
+- Audit surfaces are clear
+- Replay potential becomes feasible
 
 The Agent remains flexible and tool-agnostic.
 
 But the system state remains protected.
 
-This separation is what makes agentic systems production-ready.
+This separation is what makes agentic systems production-ready in enterprise environments.
 
-## 8. What This Feels Like as a Developer
+## 8. Runtime Phases (End-to-End Lifecycle)
+
+LLMDD-Orchestra provides a phased runtime that separates deterministic grounding, bounded reasoning, and governed commit.
+
+An Agentic Transaction moves through five explicit phases:
+
+```
++----------------------------------------------------------------------------------+
+|                               LLMDD-Orchestra Runtime                            |
++----------------------------------------------------------------------------------+
+
+   (1) Ingestion            (2) Deterministic RAG            (3) Registration
+   -----------              ----------------------           ----------------
+   Events / APIs            Background feeds -> CGO          Transaction declared
+   Kafka / Streams          Facts anchored + related facts   Workflow instantiated
+         |                             |                              |
+         v                             v                              v
+
++----------------+      +--------------------------------+     +-----------------------+
+|  Domain Events  | ---> | Deterministic RAG (CGO)         | --> | Transaction Registry  |
+|  (Kafka / API)  |      | - factId anchors                |     | - queries[]           |
++----------------+      | - relatedFacts resolved          |     | - commitOrder[]       |
+                        | - bounded context surfaced       |     +-----------------------+
+                        +--------------------------------+                  |
+                                                                             v
+
+                              (4) Execution                      (5) PolicyGate Governance
+                              -------------                      --------------------------
+                              Deterministic reasoning            Evaluate + approve + commit
+                              Query order enforced               Controlled mutation boundary
+                                        |                                      |
+                                        v                                      v
+
+                          +---------------------------+           +----------------------------+
+                          |  Transaction Execution    | --------> |    PolicyGate / Governance |
+                          |  - run queries in order   |           |  - policy checks           |
+                          |  - accumulate decisions   |           |  - scoring / validation    |
+                          |  - no mutation yet        |           |  - optional HITL           |
+                          +---------------------------+           |  - commit / reject         |
+                                                                  +----------------------------+
+                                                                                 |
+                                                                                 v
+                                                                  +----------------------------+
+                                                                  |     Durable Mutation        |
+                                                                  |  DB / Kafka / Downstream    |
+                                                                  +----------------------------+
+```
+
+### Phase 1: Ingestion
+
+Domain data enters the runtime through Kafka topics, APIs, or event streams.
+
+This phase captures raw facts but performs no reasoning.
+
+### Phase 2: Deterministic RAG (CGO)
+
+Background feeds anchor facts into a deterministic substrate.
+
+- Each decision is anchored to a `factId`
+- Related context is surfaced explicitly as `relatedFacts`
+- Reasoning operates on bounded, visible context
+
+This phase transforms raw events into stable decision inputs.
+
+### Phase 3: Registration
+
+A Transaction is declared as an external contract:
+
+- `queries[]` define bounded reasoning steps
+- `commitOrder[]` defines deterministic execution order
+
+Registration freezes the reasoning boundary and maps it to a Conductor workflow execution.
+
+### Phase 4: Execution
+
+Queries execute deterministically in the declared order.
+
+- Decisions are produced as structured artifacts
+- No durable mutation occurs during this phase
+
+Execution is a controlled reasoning phase.
+
+### Phase 5: PolicyGate Governance
+
+PolicyGate evaluates transaction outputs before any irreversible change.
+
+This phase can enforce:
+
+- Policy checks
+- Scoring and validation
+- Optional Human-in-the-Loop approval
+
+Only after governance approval does the runtime cross the commit boundary and apply durable mutations.
+
+## 9. Design Invariants
+
+The following invariants define the architectural discipline of LLMDD-Orchestra.  
+These are not implementation details. They are runtime guarantees.
+
+---
+
+### 1. Deterministic Grounding Before Reasoning
+
+Reasoning operates only on explicitly anchored facts.
+
+- Every decision is bound to a `factId`
+- Context is declared through `relatedFacts`
+- No hidden memory or implicit state accumulation
+
+---
+
+### 2. Explicit Transaction Boundary
+
+All multi-step reasoning occurs inside a declared Transaction.
+
+- Queries are explicitly defined
+- Execution order is deterministic (`commitOrder`)
+- Reasoning and mutation are separated
+
+---
+
+### 3. No Direct Mutation During Reasoning
+
+Probabilistic outputs do not directly mutate durable system state.
+
+- Reasoning accumulates structured decision artifacts
+- Mutation occurs only after governance approval
+
+---
+
+### 4. Deterministic Execution Order
+
+Execution order is defined declaratively.
+
+- No implicit loops
+- No runtime reordering
+- No hidden branching outside workflow definition
+
+---
+
+### 5. Governance Before Commit
+
+Every irreversible system mutation crosses a governance boundary.
+
+- Policy checks
+- Scoring or validation
+- Optional Human-in-the-Loop approval
+
+Commit is intentional, not incidental.
+
+---
+
+### 6. Engine, Not Reinvention
+
+LLMDD-Orchestra builds on Netflix Conductor.
+
+- Durable workflow state
+- Retry and timeout semantics
+- Execution visibility
+- Operational observability
+
+The framework defines orchestration semantics.  
+The engine handles execution durability.
+
+---
+
+### 7. LLM-Agnostic by Design
+
+LLM reasoning is optional.
+
+- LLM-based tools are pluggable
+- Governance components are decoupled
+- The runtime does not assume a single reasoning provider
+
+---
+
+These invariants ensure that agentic systems remain:
+
+- Observable
+- Replayable
+- Governable
+- Deterministic at the mutation boundary
+
+This discipline is what makes LLMDD-Orchestra suitable for enterprise-grade AI execution.
+
+
+## 10. What This Feels Like as a Developer
 
 If you are a Spring Boot / Java developer, this does not feel like an “AI framework.”
 
@@ -509,7 +713,7 @@ Controlled side effects.
 Production discipline.
 
 
-## 9. Implementation Status
+## 11. Implementation Status
 
 LLMDD-Orchestra is currently in active architectural and implementation development.
 
