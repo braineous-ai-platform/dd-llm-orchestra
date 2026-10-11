@@ -7,6 +7,14 @@ import io.braineous.dd.llm.orchestra.def.model.QueryExecutionResult;
 import io.braineous.dd.llm.orchestra.def.model.Query;
 import io.braineous.dd.llm.orchestra.def.model.Transaction;
 import io.braineous.dd.llm.orchestra.def.model.Workflow;
+import io.braineous.dd.llm.pg.model.TxStepResult;
+import io.braineous.dd.llm.pg.services.PolicyGateOrchestrator;
+import io.braineous.dd.llm.query.client.QueryResult;
+import io.braineous.dd.llm.query.client.RESTClient;
+import io.braineous.dd.llm.transaction.model.TxExecutionRequest;
+import io.braineous.dd.llm.transaction.model.TxExecutionResult;
+import io.braineous.dd.llm.transaction.model.TxStepRequest;
+import io.braineous.dd.llm.transaction.services.TransactionService;
 import io.braineous.dd.llm.orchestra.wf.runtime.LLMDDTaskService;
 import io.braineous.dd.llm.orchestra.wf.runtime.WorkflowStartService;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -88,6 +96,9 @@ public class Executor {
 
         List<QueryExecutionResult> results = new ArrayList<QueryExecutionResult>();
 
+        TxExecutionRequest request = new TxExecutionRequest();
+        request.setDescription(tx.getDescription());
+
         for (int i = 0; i < tx.getCommitOrder().size(); i++) {
 
             String queryId = tx.getCommitOrder().get(i);
@@ -107,16 +118,60 @@ public class Executor {
                         results);
             }
 
-            QueryExecutionResult r = executeQueryViaGovernance(q);
+            TxStepRequest step = new TxStepRequest();
+            step.setId(q.getId());
+            step.setDescription(q.getDescription());
+            step.setSql(q.getSql());
+            request.getSteps().add(step);
+            request.getCommitOrder().add(queryId);
+        }
 
-            results.add(r);
+        TransactionService transactionService =
+                new TransactionService(new RESTClient(), new PolicyGateOrchestrator());
 
-            if (!r.isSuccess()) {
-                return ExecutionResult.failure(workflow.getName(), tx.getDescription(), queryId,
-                        "ORCH_EXEC_STOPPED",
-                        "execution stopped at queryId=" + queryId + ", status=" + r.getStatus(),
-                        results);
+        TxExecutionResult txResult = transactionService.execute(request);
+
+        String stoppedAtQueryId = null;
+
+        if (txResult != null && txResult.getStepResults() != null) {
+            for (int i = 0; i < txResult.getStepResults().size(); i++) {
+                TxStepResult stepResult = txResult.getStepResults().get(i);
+                if (stepResult == null) {
+                    continue;
+                }
+
+                QueryExecutionResult mapped = mapStepResult(stepResult);
+                results.add(mapped);
+
+                if (!mapped.isSuccess()) {
+                    stoppedAtQueryId = mapped.getQueryId();
+                }
             }
+        }
+
+        if (txResult == null || !txResult.isApproved()) {
+            if (stoppedAtQueryId == null && !results.isEmpty()) {
+                QueryExecutionResult last = results.get(results.size() - 1);
+                if (last != null && !last.isSuccess()) {
+                    stoppedAtQueryId = last.getQueryId();
+                }
+            }
+
+            String status = "ERROR";
+            if (stoppedAtQueryId != null) {
+                for (int i = 0; i < results.size(); i++) {
+                    QueryExecutionResult mapped = results.get(i);
+                    if (mapped != null && stoppedAtQueryId.equals(mapped.getQueryId())) {
+                        status = mapped.getStatus();
+                        break;
+                    }
+                }
+            }
+
+            return ExecutionResult.failure(workflow.getName(), tx.getDescription(), stoppedAtQueryId,
+                    "ORCH_EXEC_STOPPED",
+                    "execution stopped at queryId=" + stoppedAtQueryId + ", status=" + status,
+                    results);
         }
 
         //---------------------------------------------------------------------------------
@@ -144,6 +199,10 @@ public class Executor {
                         results
                 );
             }
+
+            ExecutionResult result = ExecutionResult.success(workflow.getName(), tx.getDescription(), results);
+            result.setExecutionId(executionId);
+            return result;
         }
 
         ExecutionResult result = ExecutionResult.success(workflow.getName(), tx.getDescription(), results);
@@ -178,15 +237,29 @@ public class Executor {
         return byId;
     }
 
-    private QueryExecutionResult executeQueryViaGovernance(Query q) {
+    private QueryExecutionResult mapStepResult(TxStepResult stepResult) {
 
-        if (q.getSql() == null || q.getSql().trim().isEmpty()) {
-            return QueryExecutionResult.blocked(q.getId(), "ERROR",
-                    "ORCH_EXEC_EMPTY_SQL",
-                    "query.sql cannot be null/empty for queryId=" + q.getId());
+        String queryId = stepResult.getId();
+
+        if (stepResult.isOk()) {
+            return QueryExecutionResult.executed(queryId);
         }
 
-        return QueryExecutionResult.executed(q.getId());
+        QueryResult queryResult = stepResult.getQueryResult();
+
+        String whyCode = "ORCH_EXEC_STOPPED";
+        String details = "execution stopped at queryId=" + queryId + ", status=ERROR";
+
+        if (queryResult != null && queryResult.getWhy() != null) {
+            if (queryResult.getWhy().reason() != null) {
+                whyCode = queryResult.getWhy().reason();
+            }
+            if (queryResult.getWhy().getDetails() != null) {
+                details = queryResult.getWhy().getDetails();
+            }
+        }
+
+        return QueryExecutionResult.blocked(queryId, "ERROR", whyCode, details);
     }
 
     private com.netflix.conductor.common.metadata.workflow.WorkflowDef translateToConductorDef(Workflow workflow) {

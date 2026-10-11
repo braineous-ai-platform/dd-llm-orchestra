@@ -32,6 +32,8 @@ public class ExecutionResult extends OrchestraBaseModel {
 
     private String stoppedAtQueryId;
 
+    private String executionId;
+
     public ExecutionResult() {
     }
 
@@ -97,6 +99,14 @@ public class ExecutionResult extends OrchestraBaseModel {
 
     public String getStoppedAtQueryId() {
         return stoppedAtQueryId;
+    }
+
+    public String getExecutionId() {
+        return this.executionId;
+    }
+
+    public void setExecutionId(String executionId) {
+        this.executionId = executionId;
     }
 
     //---------------------------------------------
