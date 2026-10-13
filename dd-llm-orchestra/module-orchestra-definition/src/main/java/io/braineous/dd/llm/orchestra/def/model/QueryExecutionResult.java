@@ -17,10 +17,7 @@ public class QueryExecutionResult extends OrchestraBaseModel {
 
     private Why why;
 
-    /**
-     * V1 stable vocabulary: EXECUTED, NEEDS_APPROVAL, DENIED, ERROR
-     */
-    private String status;
+    private String queryResultJson;
 
     public QueryExecutionResult() {
     }
@@ -32,7 +29,7 @@ public class QueryExecutionResult extends OrchestraBaseModel {
         QueryExecutionResult r = new QueryExecutionResult();
         r.queryId = queryId;
         r.success = true;
-        r.status = "EXECUTED";
+        r.setStatus("EXECUTED");
         return r;
     }
 
@@ -49,7 +46,7 @@ public class QueryExecutionResult extends OrchestraBaseModel {
         QueryExecutionResult r = new QueryExecutionResult();
         r.queryId = queryId;
         r.success = false;
-        r.status = status;
+        r.setStatus(status);
         r.why = new Why(whyCode, details);
         return r;
     }
@@ -68,8 +65,12 @@ public class QueryExecutionResult extends OrchestraBaseModel {
         return why;
     }
 
-    public String getStatus() {
-        return status;
+    public String getQueryResultJson() {
+        return this.queryResultJson;
+    }
+
+    public void setQueryResultJson(String queryResultJson) {
+        this.queryResultJson = queryResultJson;
     }
 
     //---------------------------------------------
@@ -80,7 +81,7 @@ public class QueryExecutionResult extends OrchestraBaseModel {
                 "queryId='" + queryId + '\'' +
                 ", success=" + success +
                 ", why=" + why +
-                ", status='" + status + '\'' +
+                ", status='" + getStatus() + '\'' +
                 '}';
     }
 }

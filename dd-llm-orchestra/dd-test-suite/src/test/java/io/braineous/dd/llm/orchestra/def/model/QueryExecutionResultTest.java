@@ -1,6 +1,7 @@
 package io.braineous.dd.llm.orchestra.def.model;
 
 import ai.braineous.rag.prompt.observe.Console;
+import io.braineous.dd.llm.orchestra.core.model.OrchestraBaseModel;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -104,5 +105,41 @@ public class QueryExecutionResultTest {
         assertTrue(s.contains("q9"));
         assertTrue(s.contains("DENIED"));
         assertTrue(s.contains("WHY_DENIED"));
+    }
+
+    @Test
+    public void test_8() {
+
+        QueryExecutionResult r = new QueryExecutionResult();
+
+        Console.log("QueryExecutionResultTest.test_8", r.toString());
+
+        assertNull(r.getQueryResultJson());
+
+        String payload = "{\"id\":\"DD-LLM-QUERY1\",\"ok\":true,\"why\":null,\"requestJson\":{},\"queryExecutionJson\":{}}";
+        r.setQueryResultJson(payload);
+
+        Console.log("QueryExecutionResultTest.test_8.payload", r.getQueryResultJson());
+
+        assertEquals(payload, r.getQueryResultJson());
+    }
+
+    @Test
+    public void test_9() {
+
+        String payload = "{\"id\":\"DD-LLM-QUERY1\",\"ok\":true,\"why\":null,\"requestJson\":{},\"queryExecutionJson\":{}}";
+
+        QueryExecutionResult r = new QueryExecutionResult();
+        r.setQueryResultJson(payload);
+
+        String json = r.toJson();
+
+        Console.log("QueryExecutionResultTest.test_9", json);
+
+        assertNotNull(json);
+
+        QueryExecutionResult readBack = OrchestraBaseModel.fromJson(json, QueryExecutionResult.class);
+
+        assertEquals(payload, readBack.getQueryResultJson());
     }
 }

@@ -107,6 +107,24 @@ public class V1ComplianceExecutorIT {
         Assertions.assertEquals("EXECUTED", r2.getStatus());
         Assertions.assertEquals("EXECUTED", r3.getStatus());
 
+        String p1 = r1.getQueryResultJson();
+        String p2 = r2.getQueryResultJson();
+        String p3 = r3.getQueryResultJson();
+
+        Assertions.assertNotNull(p1, "q1 queryResultJson must be present");
+        Assertions.assertNotNull(p2, "q2 queryResultJson must be present");
+        Assertions.assertNotNull(p3, "q3 queryResultJson must be present");
+        Assertions.assertFalse(p1.trim().isEmpty(), "q1 queryResultJson must be non-blank");
+        Assertions.assertFalse(p2.trim().isEmpty(), "q2 queryResultJson must be non-blank");
+        Assertions.assertFalse(p3.trim().isEmpty(), "q3 queryResultJson must be non-blank");
+
+        Assertions.assertTrue(p1.contains("queryExecutionJson"), "q1 must contain Beam QueryResult.queryExecutionJson");
+        Assertions.assertTrue(p2.contains("queryExecutionJson"), "q2 must contain Beam QueryResult.queryExecutionJson");
+        Assertions.assertTrue(p3.contains("queryExecutionJson"), "q3 must contain Beam QueryResult.queryExecutionJson");
+        Assertions.assertTrue(p1.contains("requestJson"), "q1 must contain Beam QueryResult.requestJson");
+        Assertions.assertTrue(p2.contains("requestJson"), "q2 must contain Beam QueryResult.requestJson");
+        Assertions.assertTrue(p3.contains("requestJson"), "q3 must contain Beam QueryResult.requestJson");
+
         Console.log("it.query.surface",
                 "q1 id=" + r1.getQueryId() + " success=" + r1.isSuccess()
                         + " status=" + r1.getStatus() + " why=" + r1.getWhy());
@@ -116,6 +134,9 @@ public class V1ComplianceExecutorIT {
         Console.log("it.query.surface",
                 "q3 id=" + r3.getQueryId() + " success=" + r3.isSuccess()
                         + " status=" + r3.getStatus() + " why=" + r3.getWhy());
+        Console.log("it.query.payload", "q1 queryResultJson=" + p1);
+        Console.log("it.query.payload", "q2 queryResultJson=" + p2);
+        Console.log("it.query.payload", "q3 queryResultJson=" + p3);
 
         waitForWorkflowCompletion(executionId, 60_000L);
     }

@@ -242,7 +242,12 @@ public class Executor {
         String queryId = stepResult.getId();
 
         if (stepResult.isOk()) {
-            return QueryExecutionResult.executed(queryId);
+            QueryExecutionResult mapped = QueryExecutionResult.executed(queryId);
+            QueryResult queryResult = stepResult.getQueryResult();
+            if (queryResult != null) {
+                mapped.setQueryResultJson(queryResult.toJson().toString());
+            }
+            return mapped;
         }
 
         QueryResult queryResult = stepResult.getQueryResult();
@@ -259,7 +264,11 @@ public class Executor {
             }
         }
 
-        return QueryExecutionResult.blocked(queryId, "ERROR", whyCode, details);
+        QueryExecutionResult mapped = QueryExecutionResult.blocked(queryId, "ERROR", whyCode, details);
+        if (queryResult != null) {
+            mapped.setQueryResultJson(queryResult.toJson().toString());
+        }
+        return mapped;
     }
 
     private com.netflix.conductor.common.metadata.workflow.WorkflowDef translateToConductorDef(Workflow workflow) {
