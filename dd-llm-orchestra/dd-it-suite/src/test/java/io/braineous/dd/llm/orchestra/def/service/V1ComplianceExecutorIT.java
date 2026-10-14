@@ -3,20 +3,17 @@ package io.braineous.dd.llm.orchestra.def.service;
 import ai.braineous.rag.prompt.cgo.api.Fact;
 import ai.braineous.rag.prompt.models.cgo.graph.GraphBuilder;
 import ai.braineous.rag.prompt.observe.Console;
-import com.netflix.conductor.common.metadata.workflow.WorkflowDef;
 import io.braineous.dd.llm.orchestra.def.model.ExecutionResult;
 import io.braineous.dd.llm.orchestra.def.model.Query;
 import io.braineous.dd.llm.orchestra.def.model.QueryExecutionResult;
 import io.braineous.dd.llm.orchestra.def.model.Transaction;
 import io.braineous.dd.llm.orchestra.def.model.Workflow;
 import io.braineous.dd.llm.orchestra.wf.runtime.ConductorClientService;
-import io.braineous.dd.llm.orchestra.wf.runtime.WorkflowRegistrationService;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -47,13 +44,10 @@ public class V1ComplianceExecutorIT {
     private Executor executor;
 
     @Inject
-    private WorkflowRegistrationService workflowRegistrationService;
-
-    @Inject
     private ConductorClientService clientService;
 
     @Test
-    public void it_executes_workflow_happy_path_end_to_end() throws Exception {
+    public void it_executes_workflow_happy_path_end_to_end() {
 
         GraphBuilder graphBuilder = GraphBuilder.getInstance();
         graphBuilder.clear();
@@ -65,9 +59,6 @@ public class V1ComplianceExecutorIT {
         graphBuilder.addNode(payFact(POL_5001, POL_5001_TEXT));
 
         Workflow workflow = buildWorkflow();
-
-        WorkflowDef def = translate(workflow);
-        workflowRegistrationService.register(def);
 
         Map<String, Object> input = new HashMap<String, Object>();
         input.put("k1", "v1");
@@ -139,12 +130,6 @@ public class V1ComplianceExecutorIT {
         Console.log("it.query.payload", "q3 queryResultJson=" + p3);
 
         waitForWorkflowCompletion(executionId, 60_000L);
-    }
-
-    private WorkflowDef translate(Workflow workflow) throws Exception {
-        Method m = Executor.class.getDeclaredMethod("translateToConductorDef", Workflow.class);
-        m.setAccessible(true);
-        return (WorkflowDef) m.invoke(executor, workflow);
     }
 
     private Workflow buildWorkflow() {

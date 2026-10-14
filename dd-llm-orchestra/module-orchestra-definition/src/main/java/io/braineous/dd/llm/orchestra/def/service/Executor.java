@@ -16,6 +16,7 @@ import io.braineous.dd.llm.transaction.model.TxExecutionResult;
 import io.braineous.dd.llm.transaction.model.TxStepRequest;
 import io.braineous.dd.llm.transaction.services.TransactionService;
 import io.braineous.dd.llm.orchestra.wf.runtime.LLMDDTaskService;
+import io.braineous.dd.llm.orchestra.wf.runtime.WorkflowRegistrationService;
 import io.braineous.dd.llm.orchestra.wf.runtime.WorkflowStartService;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -27,6 +28,9 @@ import java.util.Map;
 
 @ApplicationScoped
 public class Executor implements ExecutorSPI {
+
+    @Inject
+    private WorkflowRegistrationService registrationService;
 
     @Inject
     private WorkflowStartService startService;
@@ -183,7 +187,13 @@ public class Executor implements ExecutorSPI {
         // Runtime bridge (not wired yet — controlled by activeExeMode)
         if (activeExeMode) {
 
+            String name = workflow.getName();
+            if (name == null || name.trim().length() == 0) {
+                workflow.setName("fno_rebook_v1_" + System.currentTimeMillis());
+            }
+
             WorkflowDef def = translateToConductorDef(workflow);
+            this.registrationService.register(def);
 
             String executionId = this.startService.start(def, input);
             Console.log("__success_executionid___", executionId);

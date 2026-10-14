@@ -3,20 +3,17 @@ package io.braineous.dd.llm.orchestra.def.service;
 import ai.braineous.rag.prompt.cgo.api.Fact;
 import ai.braineous.rag.prompt.models.cgo.graph.GraphBuilder;
 import ai.braineous.rag.prompt.observe.Console;
-import com.netflix.conductor.common.metadata.workflow.WorkflowDef;
 import io.braineous.dd.llm.orchestra.def.model.ExecutionResult;
 import io.braineous.dd.llm.orchestra.def.model.Query;
 import io.braineous.dd.llm.orchestra.def.model.QueryExecutionResult;
 import io.braineous.dd.llm.orchestra.def.model.Transaction;
 import io.braineous.dd.llm.orchestra.def.model.Workflow;
 import io.braineous.dd.llm.orchestra.wf.runtime.ConductorClientService;
-import io.braineous.dd.llm.orchestra.wf.runtime.WorkflowRegistrationService;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -47,13 +44,10 @@ public class ExecutorSPIIT {
     private ExecutorSPI executor;
 
     @Inject
-    private WorkflowRegistrationService workflowRegistrationService;
-
-    @Inject
     private ConductorClientService clientService;
 
     @Test
-    public void test_1() throws Exception {
+    public void test_1() {
 
         GraphBuilder graphBuilder = GraphBuilder.getInstance();
         graphBuilder.clear();
@@ -66,9 +60,6 @@ public class ExecutorSPIIT {
 
         Workflow workflow = buildWorkflow();
 
-        WorkflowDef def = translate(workflow);
-        workflowRegistrationService.register(def);
-
         Map<String, Object> input = new HashMap<String, Object>();
         input.put("k1", "v1");
 
@@ -78,6 +69,12 @@ public class ExecutorSPIIT {
 
         Assertions.assertNotNull(result);
         Assertions.assertTrue(result.isSuccess());
+
+        String assignedName = result.getWorkflowName();
+        Assertions.assertNotNull(assignedName, "Spindle-assigned workflow name must be present");
+        Assertions.assertFalse(assignedName.trim().isEmpty(), "Spindle-assigned workflow name must be non-blank");
+        Assertions.assertEquals(assignedName, workflow.getName());
+        Console.log("it.workflow.name", assignedName);
 
         String executionId = result.getExecutionId();
         Assertions.assertNotNull(executionId, "Conductor executionId must be present");
@@ -141,18 +138,9 @@ public class ExecutorSPIIT {
         waitForWorkflowCompletion(executionId, 60_000L);
     }
 
-    private WorkflowDef translate(Workflow workflow) throws Exception {
-        Method m = Executor.class.getDeclaredMethod("translateToConductorDef", Workflow.class);
-        m.setAccessible(true);
-        return (WorkflowDef) m.invoke(executor, workflow);
-    }
-
     private Workflow buildWorkflow() {
 
-        String name = "fno_rebook_v1_it_" + System.currentTimeMillis();
-
         Workflow workflow = new Workflow();
-        workflow.setName(name);
         workflow.setDescription("Rebook disrupted passengers");
 
         Transaction tx = new Transaction();
