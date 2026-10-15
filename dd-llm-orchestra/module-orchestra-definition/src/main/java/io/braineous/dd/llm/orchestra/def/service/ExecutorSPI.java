@@ -10,4 +10,6 @@ public interface ExecutorSPI {
     ExecutionResult executeTransaction(
             Workflow workflow,
             Map<String, Object> input);
+
+    String getWorkflowStatus(String executionId);
 }

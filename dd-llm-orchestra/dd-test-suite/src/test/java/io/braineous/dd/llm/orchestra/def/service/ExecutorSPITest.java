@@ -30,4 +30,24 @@ public class ExecutorSPITest {
         assertFalse(r.isSuccess());
         assertEquals("ORCH_EXEC_NULL_WORKFLOW", r.getWhy().getReason());
     }
+
+    @Test
+    public void test_2() throws Exception {
+
+        assertTrue(ExecutorSPI.class.isAssignableFrom(Executor.class));
+
+        Executor ex = new Executor();
+        ExecutorSPI spi = ex;
+
+        java.lang.reflect.Method method =
+                ExecutorSPI.class.getMethod("getWorkflowStatus", String.class);
+
+        Console.log("ExecutorSPITest.test_2", method.toString());
+        Console.log("ExecutorSPITest.test_2", "spi=" + spi.getClass().getName());
+
+        assertNotNull(method);
+        assertEquals("getWorkflowStatus", method.getName());
+        assertEquals(String.class, method.getReturnType());
+        assertNotNull(spi.getClass().getMethod("getWorkflowStatus", String.class));
+    }
 }

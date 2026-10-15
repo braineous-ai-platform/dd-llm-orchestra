@@ -44,6 +44,9 @@ public class ExecutorSPIIT {
     private ExecutorSPI executor;
 
     @Inject
+    private WorkflowCompletionPoller poller;
+
+    @Inject
     private ConductorClientService clientService;
 
     @Test
@@ -79,6 +82,15 @@ public class ExecutorSPIIT {
         String executionId = result.getExecutionId();
         Assertions.assertNotNull(executionId, "Conductor executionId must be present");
         Assertions.assertFalse(executionId.trim().isEmpty(), "Conductor executionId must be non-blank");
+
+        boolean registeredAtStart = this.poller.isRegistered(executionId);
+        boolean completedAtStart = this.poller.isCompleted(executionId);
+        Console.log("it.poller.registered",
+                "executionId=" + executionId
+                        + " registered=" + registeredAtStart
+                        + " completed=" + completedAtStart);
+        Assertions.assertTrue(registeredAtStart, "execution must be registered with the completion poller");
+        Assertions.assertFalse(completedAtStart, "execution must still be polling before Conductor completion");
 
         List<QueryExecutionResult> queryResults = result.getQueryResults();
         Assertions.assertNotNull(queryResults);
@@ -136,6 +148,13 @@ public class ExecutorSPIIT {
         Console.log("it.query.payload", "q3 queryResultJson=" + p3);
 
         waitForWorkflowCompletion(executionId, 60_000L);
+
+        String spiStatus = executor.getWorkflowStatus(executionId);
+        Console.log("it.spi.workflow.status", "executionId=" + executionId + " status=" + spiStatus);
+        Assertions.assertEquals("COMPLETED", spiStatus);
+
+        waitForPollerCompletion(executionId, 10_000L);
+        assertRemainsUnregistered(executionId, 1_000L);
     }
 
     private Workflow buildWorkflow() {
@@ -242,6 +261,61 @@ public class ExecutorSPIIT {
 
     private com.netflix.conductor.client.http.WorkflowClient workflowClient() {
         return clientService.getWorkflowClient();
+    }
+
+    private void waitForPollerCompletion(String executionId, long timeoutMillis) {
+        long start = System.currentTimeMillis();
+
+        while (true) {
+            boolean completed = this.poller.isCompleted(executionId);
+            boolean registered = this.poller.isRegistered(executionId);
+            Console.log("it.poller.state",
+                    "executionId=" + executionId
+                            + " completed=" + completed
+                            + " registered=" + registered);
+
+            if (completed && !registered) {
+                return;
+            }
+
+            long elapsed = System.currentTimeMillis() - start;
+            if (elapsed > timeoutMillis) {
+                Assertions.fail("Timeout waiting for poller to observe COMPLETED. executionId="
+                        + executionId
+                        + " completed=" + completed
+                        + " registered=" + registered);
+            }
+
+            sleep(50);
+        }
+    }
+
+    private void assertRemainsUnregistered(String executionId, long windowMillis) {
+        long start = System.currentTimeMillis();
+
+        while (true) {
+            boolean completed = this.poller.isCompleted(executionId);
+            boolean registered = this.poller.isRegistered(executionId);
+
+            if (!completed || registered) {
+                Assertions.fail("completed execution must stay unregistered. executionId="
+                        + executionId
+                        + " completed=" + completed
+                        + " registered=" + registered);
+            }
+
+            long elapsed = System.currentTimeMillis() - start;
+            if (elapsed >= windowMillis) {
+                Console.log("it.poller.stable",
+                        "executionId=" + executionId
+                                + " completed=" + completed
+                                + " registered=" + registered
+                                + " windowMs=" + windowMillis);
+                return;
+            }
+
+            sleep(50);
+        }
     }
 
     private void sleep(long millis) {

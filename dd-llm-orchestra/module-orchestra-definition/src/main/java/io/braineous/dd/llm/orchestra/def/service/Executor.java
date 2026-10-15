@@ -15,6 +15,7 @@ import io.braineous.dd.llm.transaction.model.TxExecutionRequest;
 import io.braineous.dd.llm.transaction.model.TxExecutionResult;
 import io.braineous.dd.llm.transaction.model.TxStepRequest;
 import io.braineous.dd.llm.transaction.services.TransactionService;
+import io.braineous.dd.llm.orchestra.wf.runtime.ConductorClientService;
 import io.braineous.dd.llm.orchestra.wf.runtime.LLMDDTaskService;
 import io.braineous.dd.llm.orchestra.wf.runtime.WorkflowRegistrationService;
 import io.braineous.dd.llm.orchestra.wf.runtime.WorkflowStartService;
@@ -35,12 +36,22 @@ public class Executor implements ExecutorSPI {
     @Inject
     private WorkflowStartService startService;
 
+    @Inject
+    private ConductorClientService clientService;
+
+    @Inject
+    private WorkflowCompletionPoller completionPoller;
+
     //-------------------------------------------------
     // For UT/IT mode testing-only
     private boolean activeExeMode = true;
 
     void deactivateExeMode() {
         this.activeExeMode = false;
+    }
+
+    void setCompletionPoller(WorkflowCompletionPoller completionPoller) {
+        this.completionPoller = completionPoller;
     }
     //---------------------------------------------------
 
@@ -212,11 +223,23 @@ public class Executor implements ExecutorSPI {
 
             ExecutionResult result = ExecutionResult.success(workflow.getName(), tx.getDescription(), results);
             result.setExecutionId(executionId);
+            watchForCompletion(executionId);
             return result;
         }
 
         ExecutionResult result = ExecutionResult.success(workflow.getName(), tx.getDescription(), results);
         return result;
+    }
+
+    public String getWorkflowStatus(String executionId) {
+        return this.clientService.getWorkflowClient().getWorkflow(executionId, false).getStatus().name();
+    }
+
+    private void watchForCompletion(String executionId) {
+        if (this.completionPoller == null) {
+            return;
+        }
+        this.completionPoller.register(executionId, this::getWorkflowStatus);
     }
 
     private Map<String, Query> indexQueries(Transaction tx) {
